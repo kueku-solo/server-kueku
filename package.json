@@ -1,0 +1,44 @@
+{
+  "name": "ssb-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "NODE_ENV=development nodemon app.js",
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/persissolo/ssb-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/persissolo/ssb-server/issues"
+  },
+  "homepage": "https://github.com/persissolo/ssb-server#readme",
+  "dependencies": {
+    "barcode": "^0.1.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "cron": "^1.8.2",
+    "email-validator": "^2.0.4",
+    "express": "^4.17.3",
+    "firebase-admin": "^10.0.2",
+    "jsbarcode": "^3.11.5",
+    "json2csv": "^5.0.7",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^6.2.2",
+    "node-mailjet": "^3.3.7",
+    "qrcode": "^1.5.0",
+    "svg-png-converter": "^0.0.9",
+    "xmldom": "^0.6.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "bin": {
+    "server": "bin/http.js"
+  }
+}
