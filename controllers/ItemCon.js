@@ -1,6 +1,6 @@
 const Item = require('../models/Item')
 const HistoryItem = require('../models/HistoryItem')
-const Penjualan = require('../models/Penjualan')
+const Transaksi = require('../models/Transaksi')
 const { generator } = require('../helpers/kodeGenerator')
 const JsBarcode = require('jsbarcode')
 const { DOMImplementation, XMLSerializer } = require('xmldom')
@@ -47,7 +47,7 @@ class ItemCon {
         const result = {};
         const totalData = await Item.countDocuments().exec()
         result.Total = totalData                         
-    // change model.length to model.countDocuments() because you are counting directly from mongodb
+        // change model.length to model.countDocuments() because you are counting directly from mongodb
         if (endIndex < totalData) {
           result.next = {
             page: page + 1,
@@ -61,29 +61,13 @@ class ItemCon {
           };
         }
         try {
-          result.results = await Item.find({},{ nama : 1 , kodeBarang : 1 , stok : 1, harga: 1, supplier:1, deskripsi:1} ).limit(limit).skip(startIndex).populate('supplier')
-          
+            result.results = await Item.find({},{ timestamp : 1 , nama : 1 , kodeBarang : 1 , stok : 1, harga: 1, image:1} ).limit(limit).skip(startIndex)
+
             res.status(200).json(result)
         } catch (e) {
           res.status(500).json({ message: e.message });
         }
     }
-
-    static findById(req,res,next){
-        Item.findOne({_id: req.params.id})
-            .then(async data=>{
-                await Penjualan.find({'listItem.nama':data.nama}).populate('admin').populate('customer')
-                                .then(data2 =>{              
-                                    let temp = {
-                                        item : data,
-                                        laku : data2
-                                    }
-                                    res.status(200).json(temp)
-                                })
-            })
-            .catch(next)
-    }    
-
     static findByKode(req,res,next){
         Item.find({kodeBarang: req.query.kode})
             .then(data=>{
@@ -91,7 +75,6 @@ class ItemCon {
             })
             .catch(next)
     }
-    
     static async findAllHistory(req,res,next){
         HistoryItem.find().populate('item').populate('admin')
                     .then(data =>{
@@ -105,7 +88,7 @@ class ItemCon {
     //     const result = {};
     //     const totalData = await HistoryItem.countDocuments().exec()
     //     result.Total = totalData                         
-    // // change model.length to model.countDocuments() because you are counting directly from mongodb
+    //     change model.length to model.countDocuments() because you are counting directly from mongodb
     //     if (endIndex < totalData) {
     //       result.next = {
     //         page: page + 1,
@@ -129,62 +112,33 @@ class ItemCon {
     static searchHistoryByKode(req,res,next){
          Item.findOne({$or: [{'nama': req.query.src}, {'kodeBarang': req.query.src}]}).maxTimeMS(100)
                     .then(async find =>{
-                        const result = [];
+                        const result = {};
                         if(find){
                             await HistoryItem.find({item:find._id}).sort( { age: -1 } ).populate('item').populate('admin')
                                                 .then(data =>{
-                                                    res.status(200).json(data)                                                 
+                                                    result.Total = data.length
+                                                    result.results = data                                                     
                                                 })           
-                        }else{                                               
-                            res.status(200).json(result); 
+                        }else{                            
+                            result.Total = 0
+                            result.results = []                        
                         }
+                        res.status(200).json(result); 
                     })
                     .catch(next)
     }
     static searchHistoryByDate(req,res,next){
         let dateAkhir = new Date(req.query.akhir)
         dateAkhir.setDate(dateAkhir.getDate() + 1)
-
-        if(req.query.action === 'Semua'){
-            HistoryItem.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}}).sort({_id: -1}).populate('item').populate('admin')
-                      .then(data =>{
-                        res.status(200).json(data)
-                      })
-                      .catch(next)        
-        }else{
-            HistoryItem.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir},action:req.query.action}).sort({_id: -1}).populate('item').populate('admin')
-            .then(data =>{
-              res.status(200).json(data)
-            })
-            .catch(next)    
-        }
+        HistoryItem.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}}).sort({_id: -1}).populate('item').populate('admin').maxTimeMS(100)
+                  .then(data =>{
+                    res.status(200).json(data)
+                  })
+                  .catch(next)        
     }
     static async add(req,res,next){
-        if(req.body.kodeBarang === '-'){   
-                // create kode barang
-                let code = generator()
-                let flag = true
-                while(flag){
-                await  Item.findOne({kodeBarang: code})
-                                    .then(data =>{
-                                        if(data){
-                                            code = generator()
-                                        }else{
-                                            flag = false
-                                        }
-                                    })
-                                    .catch(err =>{
-                                        console.log(err)
-                                    })
-                }                           
-                req.body.kodeBarang = code
-                Item.create(req.body)
-                .then(data => {
-                    res.status(201).json(data)
-                })
-                .catch(next)                        
-               
-        }else{            
+
+        if(req.body.kodeBarang !== '-'){            
             Item.findOne({kodeBarang: req.body.kodeBarang})
                     .then(async respone =>{
                         if(respone){
@@ -192,7 +146,7 @@ class ItemCon {
                                 status: 401,
                                 message: 'kode sudah terdaftar !'
                             })
-                        }else{
+                        }else{                 
                             Item.create(req.body)
                                 .then(data => {
                                     res.status(201).json(data)
@@ -200,9 +154,34 @@ class ItemCon {
                                 .catch(next)
                         }
                     })
-                    .catch(next)             
-        }
+                    .catch(next)            
+        }else{            
+                    // create kode barang
+                        let code = generator()
+                        let flag = true
+                        while(flag){
+                        await  Item.findOne({kodeBarang: code})
+                                            .then(data =>{
+                                                if(data){
+                                                    code = generator()
+                                                }else{
+                                                    flag = false
+                                                }
+                                            })
+                                            .catch(err =>{
+                                                console.log(err)
+                                            })
+                        }     
 
+                      req.body.kodeBarang = code
+
+                      Item.create(req.body)
+                          .then(data => {
+                              res.status(201).json(data)
+                          })
+                          .catch(next)                      
+
+        }
     }
     static updateKode(req,res,next){
         Item.findOne({kodeBarang: req.body.kodeBarang})
@@ -213,22 +192,23 @@ class ItemCon {
                         message: 'kode sudah terdaftar !'
                     })
                 }else{
-                    // create barcode
-                    const xmlSerializer = new XMLSerializer();
-                    const document = new DOMImplementation().createDocument('http://www.w3.org/1999/xhtml', 'html', null);
-                    const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                    
-                    JsBarcode(svgNode, req.body.kodeBarang, {
-                        xmlDocument: document,
-                    });
-                    
-                    const svgText = xmlSerializer.serializeToString(svgNode);        
-                    let s = await svg2png({ 
-                        input: `${svgText}`.trim(), 
-                        encoding: 'dataURL', 
-                        format: 'jpeg',
-                    })                    
-                    await Item.updateOne({_id: req.params.id},{kodeBarang:req.body.kodeBarang,kodeBarcode:s})
+                    await Item.updateOne({_id: req.params.id},{kodeBarang:req.body.kodeBarang})
+                    let getItem = await Item.findById(req.params.id) 
+                    Transaksi.find({'listItem.nama':getItem.nama}).sort({_id: -1})
+                                .then(data =>{
+                                if(data.length > 0){
+                                    data.forEach(async element => {
+                                        for(let i = 0 ; i < element.listItem.length ; i++){
+                                            if(element.listItem[i].nama === getItem.nama){
+                                            element.listItem[i].kodeBarang = req.body.kodeBarang
+                                            await Transaksi.updateOne({_id :  element._id},{listItem:element.listItem})
+                                            }
+                                        }
+                                    });
+                                }
+                                })
+                                .catch(next)
+
                     const itemNew = await Item.findOne({_id: req.params.id})
                     res.status(200).json(itemNew)
                 }
@@ -303,26 +283,7 @@ class ItemCon {
                 })
                 .catch(next)
     }        
-    static async update(req,res,next){
-        if(req.body.kodeBarang === ''){
-            // create kode barang
-            let code = generator()
-            let flag = true
-            while(flag){
-            await  Item.findOne({kodeBarang: code})
-                                .then(data =>{
-                                    if(data){
-                                        code = generator()
-                                    }else{
-                                        flag = false
-                                    }
-                                })
-                                .catch(err =>{
-                                    console.log(err)
-                                })
-            }                           
-            req.body.kodeBarang = code
-        }
+    static update(req,res,next){
         Item.findOne({_id:req.params.id})
                 .then(data =>{
                     if(data){        
@@ -350,7 +311,7 @@ class ItemCon {
             .catch(next)
     }
     static async search(req,res,next){
-        await Item.findOne({$or: [{'nama': req.query.src}, {'kodeBarang': req.query.src}]}).maxTimeMS(100)
+        await Item.findOne({$or: [{'nama': req.query.src}, {'kodeBarang': req.query.src}]}).maxTimeMS(60000)
                     .then(async find =>{
                         const result = {};
                         if(find){
@@ -358,29 +319,19 @@ class ItemCon {
                             result.results = [find]
                             res.status(200).json(result);               
                         }else{                            
-                            // Item.find({$text:{$search:`"${req.query.src}"`}})
-                            //     .then(data =>{
-                            //         result.Total = data.length
-                            //         result.results = data
-                            //         res.status(200).json(result);                  
-                            //     })
-                            //     .catch(next)    
-                            
-                            console.log(req.query,src)
-                            Item.find({"nama": { $regex: '.*' + req.query.src + '.*' }})
+                            Item.find({$text:{$search:`"${req.query.src}"`}}).maxTimeMS(60000)
                                 .then(data =>{
                                     result.Total = data.length
                                     result.results = data
                                     res.status(200).json(result);                  
                                 })
-                                .catch(next)                                      
+                                .catch(next)                             
                         }
                     })
                     .catch(next)         
-
     }   
     static async search2(req,res,next){ 
-        await Item.findOne({$or: [{'nama': req.query.src}, {'kodeBarang': req.query.src}]}).maxTimeMS(100).populate('supplier')
+        await Item.findOne({$or: [{'nama': req.query.src}, {'kodeBarang': req.query.src}]}).maxTimeMS(100)
                     .then(async find =>{
                         const result = {};
                         if(find){
@@ -392,7 +343,7 @@ class ItemCon {
                             const limit = parseInt(req.query.limit);
                             const startIndex = (page - 1) * limit;
                             const endIndex = page * limit;
-                            const totalData = await Item.countDocuments({$text:{$search:`"${req.query.src}"`}}).exec()
+                            const totalData = await Item.countDocuments({$text:{$search:`"${req.query.src}"`}}).exec().maxTimeMS(60000)
                             result.Total = totalData                         
                         // change model.length to model.countDocuments() because you are counting directly from mongodb
                             if (endIndex < totalData) {
@@ -408,7 +359,7 @@ class ItemCon {
                               };
                             }
                             try {
-                                let temp  = await Item.find({"nama": { $regex: '.*' + req.query.src + '.*' }},{ nama : 1 , kodeBarang : 1 , stok : 1, harga: 1, supplier:1, kategori:1, merkMobil:1, merkKaca: 1, deskripsi:1} ).sort( { timestamp : -1 } ).limit(limit).skip(startIndex).populate('supplier')
+                                let temp  = await Item.find({$text:{$search:`"${req.query.src}"`}},{ timestamp : 1 , nama : 1 , kodeBarang : 1 , stok : 1, hargaGrosir: 1, hargaEcer:1,hargaModal:1} ).sort( { timestamp : -1 } ).limit(limit).skip(startIndex)
                                 result.results = temp                                
                                 res.status(200).json(result)
                             } catch (e) {
@@ -418,6 +369,73 @@ class ItemCon {
                     })
                     .catch(next)
     }  
+
+    static async totalLaku(req,res,next){
+        let dateAkhir = new Date(req.query.akhir)
+        dateAkhir.setDate(dateAkhir.getDate() + 1)
+        Transaksi.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir},$text:{$search:`"${req.query.name}"`}}).sort({_id: -1})
+                  .then(data =>{
+                    let dataTemp = []
+
+                    data.forEach((transaction) => {
+                        transaction.listItem.forEach((item) => {
+                            if (item.nama.includes(req.query.name)) {
+                                dataTemp.push(item)
+                            }
+                        });
+                    });
+
+
+                    let result = [];
+
+                    // Combine similar entries
+                    dataTemp.forEach(obj => {
+                      let key = obj["nama"];
+                      let value = obj["qty"];
+                  
+                      // Check if the key already exists in the result array
+                      let existingEntry = result.find(entry => entry.hasOwnProperty(key));
+                  
+                      if (existingEntry) {
+                        // If the key exists, update the value
+                        existingEntry[key] += value;
+                      } else {
+                        // If the key doesn't exist, add a new entry
+                        let newEntry = {"kodeBarang":obj.kodeBarang,"harga": obj.harga};
+                        newEntry[key] = value;
+                        result.push(newEntry);
+                      }
+                    });
+
+                        // Function to convert JSON to CSV
+                        const convertToCSV = (data) => {
+                            const header = ["nama", "qty", "kode barang", "harga"];
+                            const rows = data.map(item => {
+                                const nama = Object.keys(item).find(key => key !== "kodeBarang" && key !== "harga");
+                                const qty = item[nama];
+                                const kodeBarang = item.kodeBarang;
+                                const harga = item.harga;
+                                return [nama, qty, kodeBarang, harga];
+                            });
+
+                            return [header.join(",")].concat(rows.map(row => row.join(","))).join("\n");
+                        }
+
+                        const csvData = convertToCSV(result);
+
+                        // const csvFields = ["nama","qty","harga","kode barang"];
+                        // const csvParser = new CsvParser({ csvFields });
+                        // const csvData = csvParser.parse(data);
+                    
+                        res.setHeader("Content-Type", "text/csv");
+                        res.setHeader("Content-Disposition", `attachment; filename=${req.query.name+req.query.mulai}.csv`);
+                        
+                        res.status(200).end(csvData);  
+
+                    // res.status(200).json(result)
+                  })
+                  .catch(next)         
+    }
 
     static convertToCsv(req,res,next){        
         Item.find({},{ nama : 1 , kodeBarang : 1 , stok : 1, hargaGrosir: 1, hargaEcer:1} )

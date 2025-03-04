@@ -9,22 +9,26 @@ const errorHandler = require('./middlewares/errorHandler')
 const app = express()
 const port = process.env.PORT || 3000
 app.listen(port,function(){
-    console.log('run on port =====> ', port)
+    console.log('run on port =====>', port)
 })
 app.get('/',function(req,res){
     res.send('connect success..')
 })
-
 mongoose.set("strictQuery", false);
-mongoose.connect(process.env.MONGO_URL,{useNewUrlParser: true, useUnifiedTopology: true, family: 4})
+mongoose.connect(process.env.MONGO_URL,{useNewUrlParser: true, useUnifiedTopology: true, family:4})
         .then(() => {            
             console.log('connect to database')
         })
         .catch(err =>{
             console.log(err)
         })
-
-app.use(cors())
+        
+const corsOptions ={
+    origin:'*', 
+    credentials:true,            //access-control-allow-credentials:true
+    optionSuccessStatus:200,
+    }
+app.use(cors(corsOptions))
 app.use(express.json({limit: '50mb'}))
 app.use(express.urlencoded({limit: '50mb', extended: true}))
 

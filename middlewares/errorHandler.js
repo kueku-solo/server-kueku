@@ -1,5 +1,20 @@
-module.exports = (err,req,res,next) => {
-    // console.log(err, 'ini eror')
+const Error = require('../models/Error')
+
+module.exports = async(err,req,res,next) => {
+    let tempErr = {
+        nama : err,
+        status: ''
+    }
+    if(err.status){
+        tempErr.status = err.status
+    }
+    if(err.message){
+        tempErr.nama = err.message
+    }
+    
+
+    await Error.create(tempErr)
+
     let statusCode;
     let messageError = []
     switch(err.name || err.status){
@@ -21,6 +36,6 @@ module.exports = (err,req,res,next) => {
         statusCode = 400
         messageError.push("bad request")
     }
-    // console.log(messageError)
+
     res.status(statusCode).json({errors: messageError})
 }

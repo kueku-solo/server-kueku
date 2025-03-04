@@ -6,22 +6,15 @@ const historyItemSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Item'
     },
-    harga: {
-        type: Number
+    stokLama: {
+        type: Number,
     },
-    qty: {
+    stokBaru: {
         type: Number,
     },     
     admin:{
         type: Schema.Types.ObjectId,
         ref: 'Admin'
-    },
-    action:{
-        type: String,
-        enum: ['Laku', 'Beli', 'Retur']
-    },
-    deskripsi:{
-        type: String
     },
     tanggal:{
         type: String

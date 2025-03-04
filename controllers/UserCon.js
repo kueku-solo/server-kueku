@@ -4,7 +4,7 @@ const Admin = require('../models/Admin')
 const {hashPassword} = require('../helpers/bcrypt')
 const {generateToken} = require('../helpers/jwt')
 const {commparePassword} = require('../helpers/bcrypt')
-
+const { barcodeGenerator } = require('../helpers/kodeGenerator')
 
 
 
@@ -42,7 +42,24 @@ class UserCon {
                   res.status(500).json({ message: e.message });
                 }                            
     }
-    static registerAdmin(req,res,next){
+    static async registerAdmin(req,res,next){
+        // create kode barang
+        let code = barcodeGenerator()
+        let flag = true
+        while(flag){
+        await  Admin.findOne({barcode: code})
+                            .then(data =>{
+                                if(data){
+                                    code = barcodeGenerator()
+                                }else{
+                                    flag = false
+                                }
+                            })
+                            .catch(err =>{
+                                console.log(err)
+                            })
+        }          
+        req.body.barcode = code
         Admin.create(req.body)
             .then(data => {
                 const token = generateToken(data)
@@ -99,7 +116,8 @@ class UserCon {
                     let temp = {
                         email:req.body.email,
                         username:req.body.username,
-                        role:req.body.role
+                        role:req.body.role,
+                        pin:req.body.pin
                     } 
                     Admin.updateOne({_id: req.params.id},temp)
                             .then(respone =>{

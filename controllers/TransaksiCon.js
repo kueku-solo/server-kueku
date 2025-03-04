@@ -1,244 +1,180 @@
-const Supplier = require('../models/Supplier')
-const Customer = require('../models/Customer')
+const Transaksi = require('../models/Transaksi')
 const Item = require('../models/Item')
-const HistoryItem = require('../models/HistoryItem')
-const Pembelian = require('../models/Pembelian')
-const Penjualan = require('../models/Penjualan')
+const Shift = require('../models/Shift')
 
 
 class TransaksiCon {
-    static async findAllPembelian(req,res,next){
-        let dateAkhir = new Date(req.query.akhir)
-        dateAkhir.setDate(dateAkhir.getDate() + 1)
-        Pembelian.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}}).sort({_id: -1}).populate('supplier').populate('admin')
-                  .then(data =>{
-                    res.status(200).json(data)
-                  })
-                  .catch(next)
+    static findAll(req,res,next){
+      let dateAkhir = new Date(req.query.akhir)
+      dateAkhir.setDate(dateAkhir.getDate() + 1)
+      Transaksi.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}}).sort({_id: -1}).populate('kasir')
+                .then(data =>{
+                  res.status(200).json(data)
+                })
+                .catch(next)
     }
+    static findByKodeBarang(req,res,next){
 
-    static async findAllPenjualan(req,res,next){
-        let dateAkhir = new Date(req.query.akhir)
-        dateAkhir.setDate(dateAkhir.getDate() + 1)
-        Penjualan.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}}).sort({_id: -1}).populate('customer').populate('admin')
-                  .then(data =>{
-                    res.status(200).json(data)
-                  })
-                  .catch(next)
+      Transaksi.find({'listItem.kodeBarang':req.query.kode}).sort({_id: -1}).populate('kasir')
+                .then(data =>{
+                  res.status(200).json(data)
+                })
+                .catch(next)
+
+            // Transaksi.find({'listItem.kodeBarang':req.query.kode})
+            //     .then(data =>{
+            //       let tempData = []
+            //       data.forEach(async element => {
+            //         element.listItem.forEach(element2 => {
+            //             if(element2.kodeBarang === req.query.kode){
+            //               element2.kodeBarang = req.query.kodenew
+            //             }
+            //         });
+
+            //         await Transaksi.updateOne({_id:element._id},element)
+            //         tempData.push(element)
+            //       });
+
+            //       res.status(200).json(tempData)
+            //     })
+            //     .catch(next)
     }    
-
-    static async findAllPenjualanByStatus(req,res,next){
-        let dateAkhir = new Date(req.query.akhir)
-        dateAkhir.setDate(dateAkhir.getDate() + 1)
-        Penjualan.find({createdAt: {$gte: new Date(req.query.mulai),$lt: dateAkhir}, metode: req.query.metode}).sort({_id: -1}).populate('customer').populate('admin')
-                  .then(data =>{
-                    res.status(200).json(data)
-                  })
-                  .catch(next)
-    }        
-
-    // PEMBELIAN
-    static async addPembelian(req,res,next){    
-        // get date now
-        function convertTZ(date, tzString) {
-            return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {timeZone: tzString}));   
-        }
-        let getDate = convertTZ(new Date,'Asia/Jakarta')      
-        const day = getDate.getDate()
-        let month = getDate.getMonth()
-        month++
-        const year = getDate.getFullYear()
-        const fullDate = `${year}-${month}-${day}`
-
-        let hour = getDate.getHours()      
-        let minute = getDate.getMinutes() 
-        // get date now    
-
-        
-        if(Number(hour) < 10){
-            hour = `0${hour}`
-        } 
-        if(Number(minute) < 10){
-            minute = `0${minute}`
-        }
-        req.body.admin = req.user._id
-        req.body.jam = hour+':'+minute
-
-
-        Pembelian.create(req.body)
-                    .then(async data => {
-                        let tempSupplier = '-'
-                        // update history pembelian supplier                        
-                        await Supplier.findOne({_id:req.body.supplier})
-                                        .then(async dataSupplier => {
-                                            if(dataSupplier){
-                                                tempSupplier = dataSupplier.nama
-                                                await Supplier.updateOne({_id: dataSupplier._id},{$push : {historyPembelian: data._id}})
-                                            }
-                                        })
-                                        .catch(next)  
-
-                        // update stok item & history item
-                        req.body.listItem.forEach(async element => {
-                            await Item.updateOne({kodeBarang:element.kodeBarang},{$inc : {stok:Number(element.qty)}})
-
-                            
-                            let tempHistoryItem = {
-                                item:element.idBarang,
-                                harga: element.harga,   
-                                admin:req.user._id,
-                                action:'Beli',
-                                qty: element.qty,
-                                tanggal:fullDate,    
-                                jam:hour+':'+minute,
-                                deskripsi: tempSupplier
+    static finByNamaBarang(req,res,next){
+      Transaksi.find({'listItem.nama':req.query.nama}).sort({_id: -1}).populate('kasir')
+                .then(data =>{
+                  if(data.length > 0){
+                    data.forEach(async element => {
+                        for(let i = 0 ; i < element.listItem.length ; i++){
+                            if(element.listItem[i].nama === req.query.nama){
+                              element.listItem[i].kodeBarang = req.query.kode
+                              await Transaksi.updateOne({_id :  element._id},{listItem:element.listItem})
                             }
-                            await HistoryItem.create(tempHistoryItem)                            
-                        })
+                        }
+                    });
+                  }
 
-                        res.status(201).json(data)
-                    })
-                    .catch(next) 
+                  res.status(200).json(data)
 
-    }
-    
-    static updatePembelian(req,res,next){
-        Pembelian.findOne({_id:req.params.id})
-                .then(data =>{
-                    if(data){        
-                            Pembelian.updateOne({_id: req.params.id},req.body)
-                                .then(async respone =>{                                            
-                                    res.status(200).json(respone)
-                                })
-                                .catch(next)
-                    }else{
-                        next({
-                            status: 401,
-                            message: 'id salah'
-                        })
-                    }
                 })
-                .catch(next)            
-    }
-    static destroyPembelian(req,res,next){
-        Pembelian.deleteOne({_id: req.params.id})
-            .then(respone=>{
-                res.status(200).json(respone)
-            })
-            .catch(next)
-    }
-       
-    // Penjualan
-    static async addPenjualan(req,res,next){    
+                .catch(next)
+    }        
+    static add(req,res,next){
         // get date now
         function convertTZ(date, tzString) {
-            return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {timeZone: tzString}));   
-        }
-        let getDate = convertTZ(new Date,'Asia/Jakarta')         
-        let hour = getDate.getHours()      
-        let minute = getDate.getMinutes() 
-        const day = getDate.getDate()
-        let month = getDate.getMonth()
-        month++
-        const year = getDate.getFullYear()
-        const fullDate = `${year}-${month}-${day}`
-        // get date now    
-  
-        if(Number(hour) < 10){
-            hour = `0${hour}`
-        } 
-        if(Number(minute) < 10){
-            minute = `0${minute}`
-        }
-        req.body.admin = req.user._id
-        req.body.jam = hour+':'+minute
-        req.body.tanggal= fullDate
+          return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {timeZone: tzString}));   
+      }
+      let getDate = convertTZ(new Date,'Asia/Jakarta')         
+      let hour = getDate.getHours()      
+      let minute = getDate.getMinutes() 
+      // get date now    
 
-        Penjualan.create(req.body)
-                    .then(async data => {
-                        let tempCustomer = '-'
-                        // update history Penjualan customer
-                        if(req.body.customer){
-                            await Customer.findOne({_id:req.body.customer})
-                                            .then(async dataCustomer => {
-                                                if(dataCustomer){
-                                                    tempCustomer = dataCustomer.nama
-                                                    await Customer.updateOne({_id: dataCustomer._id},{$push : {historyPembelian: data._id}})
-                                                }
-                                            })
-                                            .catch(next)  
-                        }
+      if(Number(hour) < 10){
+          hour = `0${hour}`
+      } 
+      if(Number(minute) < 10){
+          minute = `0${minute}`
+      }
+      req.body.kasir = req.user._id
+      Transaksi.create(req.body)
+              .then(async data => {
+                // update Kasir shift
+                await Shift.findOne({'jamKerja.pulang':'-'})
+                              .then(async dataShift => {
+                                  if(dataShift){
+                                    await Shift.updateOne({_id: dataShift._id},{$push : {transaksi: data._id}})
+                                  }
+                              })
+                              .catch(next)  
+                // update createdAt
+                await Transaksi.updateOne({_id: data._id},{jam:hour+':'+minute})
+                // update stok item
+                req.body.listItem.forEach(async element => {
+                  await Item.updateOne({kodeBarang:element.kodeBarang},{$inc : {stok:-Number(element.qty)}})
+                });
 
-                        // update stok item
-                        req.body.listItem.forEach(async element => {
-                            await Item.updateOne({kodeBarang:element.kodeBarang},{$inc : {stok:-Number(element.qty)}})
+                  let tempData = {
+                    id : data._id,
+                    kasir : req.user.username,
+                    jam:hour+':'+minute
+                  }
+                  res.status(201).json(tempData)
+              })
+              .catch(next)                             
 
-                            // create history
-                            let tempHistoryItem = {
-                                item:element.idBarang,
-                                harga: element.harga,    
-                                admin:req.user._id,
-                                action:'Laku',
-                                qty: element.qty,
-                                tanggal:fullDate,    
-                                jam:hour+':'+minute,
-                                deskripsi: tempCustomer
-                            }                            
-                            await HistoryItem.create(tempHistoryItem)     
-                                                    
-                        })
-
-                      
-                        res.status(201).json(data)
-                    })
-                    .catch(next) 
     }
-    
-    static updatePenjualan(req,res,next){
-        Penjualan.findOne({_id:req.params.id})
-                .then(data =>{
-                    if(data){        
-                            Penjualan.updateOne({_id: req.params.id},req.body)
-                                .then(async respone =>{                                            
-                                    res.status(200).json(respone)
-                                })
-                                .catch(next)
-                    }else{
-                        next({
-                            status: 401,
-                            message: 'id salah'
-                        })
-                    }
+    static batalTransaksi(req,res,next){
+      Transaksi.findOne({_id:req.params.id})
+                .then(async data => {
+                  if(data){
+                    // update Kasir shift
+                    await Transaksi.updateOne({_id :  req.params.id},{status: false})
+                    // update stok item
+                    data.listItem.forEach(async element => {
+                      await Item.updateOne({kodeBarang:element.kodeBarang},{$inc : {stok:+Number(element.qty)}})
+                    });
+                      res.status(201).json(data)
+                  }else{
+                    next({
+                      status: 401,
+                      message: 'id salah !'
+                  })
+                  }
                 })
-                .catch(next)            
+                .catch(next)
+  }    
+    static update(req,res,next){
+        Transaksi.updateOne({_id: req.params.id},req.body)
+            .then(respone =>{
+                res.status(200).json(respone)
+            })
+            .catch(next)
     }
+    static refundItem(req,res,next){
+      Transaksi.findOne({_id:req.params.id})
+                .then(async data => {
+                  if(data){
+                    // update Transaksi list item
+                    let tempListItem = []
+                    let tempTotalHarga = 0
+                    
+                    data.listItem.forEach(element => {
+                      if(element.kodeBarang === req.body.kodeBarang){
+                        element.qty = Number(element.qty) - Number(req.body.jumlah)                        
+                      }
 
-    static ubahMetode(req,res,next){
-        Penjualan.findOne({_id:req.params.id})
-                    .then(data =>{
-                        if(data){        
-                                Penjualan.updateOne({_id: req.params.id},{metode:req.query.metod})
-                                            .then(async respone =>{                                            
-                                                res.status(200).json(respone)
-                                            })
-                                            .catch(next)
-                        }else{
-                            next({
-                                status: 401,
-                                message: 'id salah'
-                            })
-                        }
+                      if(element.qty > 0){
+                        tempListItem.push(element)
+                      }
+                      
+                      let total = Number(element.qty) * Number(element.harga)
+                      tempTotalHarga += total
                     })
-                    .catch(next)            
-    }
 
-    static destroyPenjualan(req,res,next){
-        Penjualan.deleteOne({_id: req.params.id})
+                    await Transaksi.updateOne({_id :  req.params.id},{listItem:tempListItem,totalHarga: tempTotalHarga})
+
+                    
+
+                    // update stok item
+                      await Item.updateOne({kodeBarang:req.body.kodeBarang},{$inc : {stok:+Number(req.body.jumlah)}})
+
+
+                      res.status(201).json(data)
+                  }else{
+                    next({
+                      status: 401,
+                      message: 'id salah !'
+                    })
+                  }
+                })
+                .catch(next)        
+    }
+    static destroy(req,res,next){
+        Transaksi.deleteOne({_id: req.params.id})
             .then(respone=>{
                 res.status(200).json(respone)
             })
             .catch(next)
-    }    
+    }
 }
 
 module.exports = TransaksiCon

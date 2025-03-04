@@ -1,25 +1,19 @@
 const express = require('express')
 const route = express.Router()
 const TransaksiCon = require('../controllers/TransaksiCon')
-const { authenticate , authenticateKasir} = require('../middlewares/auth')
+const { authenticate, authenticatePinKasir } = require('../middlewares/auth')
 
-route.get('/pembelian', TransaksiCon.findAllPembelian)
-route.get('/penjualan', TransaksiCon.findAllPenjualan)
-route.get('/penjualan/status', TransaksiCon.findAllPenjualanByStatus)
-
-
-
-route.post('/penjualan',authenticateKasir, TransaksiCon.addPenjualan)
-route.post('/pembelian',authenticateKasir, TransaksiCon.addPembelian)
-route.put('/metode/:id',authenticateKasir,TransaksiCon.ubahMetode)
+route.get('/',authenticate, TransaksiCon.findAll)
+route.get('/by', TransaksiCon.findByKodeBarang)
+route.get('/by/name', TransaksiCon.finByNamaBarang)
+route.post('/',authenticatePinKasir, TransaksiCon.add)
+route.put('/batal/:id',authenticate, TransaksiCon.batalTransaksi)
+route.put('/refund/:id',authenticate, TransaksiCon.refundItem)
 
 route.use(authenticate)
 
-
-route.put('/penjualan/:id', TransaksiCon.updatePenjualan)
-route.delete('/penjualan/:id', TransaksiCon.destroyPenjualan)
-route.put('/pembelian/:id', TransaksiCon.updatePembelian)
-route.delete('/pembelian/:id', TransaksiCon.destroyPembelian)
+route.put('/:id', TransaksiCon.update)
+route.delete('/:id', TransaksiCon.destroy)
 
 
 

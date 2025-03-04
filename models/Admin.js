@@ -41,6 +41,12 @@ const adminSchema = new Schema({
     role : {
         type: String,
     },
+    pin : {
+        type: String
+    },
+    barcode :{
+        type: String
+    }
 })
 
 adminSchema.pre('save', function(next){

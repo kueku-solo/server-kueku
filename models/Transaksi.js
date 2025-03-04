@@ -1,19 +1,19 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const pembelianSchema = new Schema({
-    supplier: {
-        type: Schema.Types.ObjectId,
-        ref: 'Supplier'
+const transaksiSchema = new Schema({
+    status:{
+        type: Boolean,
+        default: true
     },
-    admin: {
+    customer: {
+        type: String,        
+    },
+    kasir: {
         type: Schema.Types.ObjectId,
         ref: 'Admin'
     },    
     listItem: [{
-        idBarang:{
-            type: String
-        },
         kodeBarang:{
             type: String,
         },               
@@ -23,20 +23,23 @@ const pembelianSchema = new Schema({
         qty:{
             type: Number,            
         }, 
-        hargaModal:{
+        harga:{
             type: Number,            
         },                                     
     }],
+    diskon:{
+        type: Number
+    },
     totalHarga: {
         type: Number,
-    }, 
-    metode: {
-        type: String,
-        enum: ['Tunai', 'Bon', 'Transfer']
     },
-    deskripsi:{
+    bayar: {
+        type: Number,
+        default: 0
+    },    
+    pembayaran: {
         type: String,
-        default:'-' 
+        enum: ['Tunai', 'Bank', 'Shopee']
     },
     jam:{
         type: String,
@@ -44,6 +47,6 @@ const pembelianSchema = new Schema({
     }
     
 }, {timestamps: true})
-
-const x = mongoose.model('Pembelian', pembelianSchema)
+transaksiSchema.index({'listItem.nama':'text','listItem.kodeBarang':'text'})
+const x = mongoose.model('Transaksi', transaksiSchema)
 module.exports = x
