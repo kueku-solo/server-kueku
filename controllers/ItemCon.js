@@ -61,8 +61,7 @@ class ItemCon {
           };
         }
         try {
-            result.results = await Item.find({},{ timestamp : 1 , nama : 1 , kodeBarang : 1 , stok : 1, harga: 1, image:1} ).limit(limit).skip(startIndex)
-
+            result.results = await Item.find({},{ timestamp : 1 , nama : 1 , kodeBarang : 1 , stok : 1, harga: 1, image:1, modal:1} ).limit(limit).skip(startIndex)
             res.status(200).json(result)
         } catch (e) {
           res.status(500).json({ message: e.message });
@@ -137,6 +136,9 @@ class ItemCon {
                   .catch(next)        
     }
     static async add(req,res,next){
+        if(req.body.modal === 0 || req.body.modal === undefined){
+            req.body.modal = req.body.harga
+        }
 
         if(req.body.kodeBarang !== '-'){            
             Item.findOne({kodeBarang: req.body.kodeBarang})

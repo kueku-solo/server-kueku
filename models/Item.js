@@ -7,10 +7,13 @@ const itemSchema = new Schema({
         required:[true, 'isi nama barang !!']
     },
     stok: {
-        type: Number,
+        type: Number
+    },
+    modal: {
+        type: Number
     },
     harga: {
-        type: Number,
+        type: Number
     },
     kodeBarang:{
         type: String,

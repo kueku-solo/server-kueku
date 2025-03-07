@@ -25,7 +25,10 @@ const transaksiSchema = new Schema({
         }, 
         harga:{
             type: Number,            
-        },                                     
+        },
+        laba: {
+            type: Number,
+        }                                     
     }],
     diskon:{
         type: Number

@@ -47,7 +47,7 @@ class UserCon {
         let code = barcodeGenerator()
         let flag = true
         while(flag){
-        await  Admin.findOne({barcode: code})
+        await  Admin.findOne({pin: code})
                             .then(data =>{
                                 if(data){
                                     code = barcodeGenerator()
@@ -59,7 +59,7 @@ class UserCon {
                                 console.log(err)
                             })
         }          
-        req.body.barcode = code
+        req.body.pin = code
         Admin.create(req.body)
             .then(data => {
                 const token = generateToken(data)

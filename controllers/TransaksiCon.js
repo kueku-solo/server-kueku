@@ -139,15 +139,16 @@ class TransaksiCon {
                     
                     data.listItem.forEach(element => {
                       if(element.kodeBarang === req.body.kodeBarang){
-                        element.qty = Number(element.qty) - Number(req.body.jumlah)                        
+                          element.qty = Number(element.qty) - Number(req.body.jumlah)                        
                       }
 
                       if(element.qty > 0){
+                        element.laba = Number(element.laba) - (Number(req.body.jumlah) * Number(element.harga))
                         tempListItem.push(element)
+                        let total = Number(element.qty) * Number(element.harga)
+                        tempTotalHarga += total
                       }
                       
-                      let total = Number(element.qty) * Number(element.harga)
-                      tempTotalHarga += total
                     })
 
                     await Transaksi.updateOne({_id :  req.params.id},{listItem:tempListItem,totalHarga: tempTotalHarga})

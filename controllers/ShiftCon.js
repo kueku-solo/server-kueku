@@ -12,6 +12,7 @@ class ShiftCon {
                   })
                   .catch(next)
     }
+    
     static async findAllShiftUser(req,res,next){
         const page = parseInt(req.query.page);
         const limit = parseInt(req.query.limit);
@@ -113,7 +114,7 @@ class ShiftCon {
                                     })
                                 })   
     }                    
-    static selesaiShift(req,res,next){
+    static async selesaiShift(req,res,next){
         // get date now
         function convertTZ(date, tzString) {
             return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {timeZone: tzString}));   
@@ -134,6 +135,7 @@ class ShiftCon {
         if(Number(minute) < 10){
             minute = `0${minute}`
         }   
+
         let temp = {
             'jamKerja.pulang' : hour+':'+minute ,
             setor: req.body.setor,

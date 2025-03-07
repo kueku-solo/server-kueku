@@ -117,12 +117,11 @@ module.exports = {
     },  
     authenticatePinKasir : (req, res, next) => {        
         try {    
-            Admin.findOne({"barcode": req.headers.token})
+            Admin.findOne({"pin": req.headers.token})
                     .then (User => {    
                         if (User) {                            
                                 req.user = User
                                 next()
-                          
                         } else {
                             next({
                                 message : 'user not Found',
